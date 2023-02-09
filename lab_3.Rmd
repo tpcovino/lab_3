@@ -1,0 +1,112 @@
+---
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+# Lab 3 - dataRetrieval and area normalized annual flows (20 pts)
+
+[**Lab 3 repo here**](https://github.com/tpcovino/lab_3)
+
+In this lab we are going to use dataRetrieval and other packages (e.g., tidyverse, leaflet, lubridate) to download and analyze flow data. You are going to download streamflow data for gauges in Park County Montana. You will start by exploring how many gauges there are in the county and mapping them to see where they are. Next you will download the data from the gauges and do some EDA. You will then do some data analysis on a subset of gauges that meet certain criteria. 
+
+Load the necessary packages. 
+```{r}
+
+```
+
+
+Use dataRetrieval to see how many USGS streamflow gauges there are in Park County that have data from 10/1/1990 to 10/1/2022. Call this df "stream_gauges"
+```{r}
+
+# write the csv to save the data locally. This means you don't have to re-download everytime you work with this. 
+#write_csv(stream_gauges, "stream_gauges.csv")
+# then load the data. 
+#stream_gauges <- read_csv("stream_gauges.csv")
+# you will want to repeat this process in any chunks that have dataRetrieval functions that are reaching out to the internet. 
+```
+
+Map the gauges. 
+```{r}
+
+```
+
+
+Download the Q data for the gauges using dataRetrieval. Call the dataframe you create "flows" 
+```{r}
+
+
+# Again we want to write and then read the df so we can comment out the dataRetrieval function from trying to go to the internet. 
+#write_csv(flows, "flows.csv")
+#flows <- read_csv("flows.csv")
+```
+
+Make a facet wrap to look at the flows for each gauge. 
+```{r}
+
+```
+
+
+Filter your data frame of streamflow data to only include gauges that have data that extends back to 1990. Hint: you should have 4 gauges. Call this df "flows_filt"
+```{r}
+
+```
+
+Make another facet wrap of flow at those 4 guages.
+```{r}
+
+```
+
+For the 4 gauges you have kept convert flow from cfs to mm/day. You will need to know the area of each watershed, which you can get from readNWISsite. Remember that your Q data are currently in cfs so there are multiple conversions you will need to do in order to get to mm/day. To add drainage area to you df you are going to need to use join(). You might need some intermediate dfs but in the end you will have a df that has flow in mm/day. Call this df "flow_mm". 
+
+```{r}
+
+
+```
+
+
+```{r}
+
+```
+
+Make a facet wrap of flow for each gauge in mm/day. 
+```{r}
+
+```
+
+Compute and plot total annual flow for each gauge. You will need lubridate and year(). Call this df "flow_mm_an"
+
+```{r}
+
+
+```
+
+Make a facet wrap of total annual flow in mm per year for each gauge. 
+```{r}
+
+```
+
+Plot total annual flow from each gauge in mm/year all on the same graph. Make a map of the gauges to aid in interpretation of patterns in total annual flows. 
+```{r}
+
+```
+
+## Summary (20 pts)
+
+Using mm/year allows us to compare across gauges with very different volumetric (e.g., cfs or cms) flow rates. Use your plots of mm/year to comment on:\
+1. Does one gauge produce consistently less flow year to year?\
+2. Does one gauge produce consistently more flow year to year?\
+3. Which gauges show similar patterns in annual water yield? Provide a plausible explanation for why that might be.\
+4. For any gauges that seem different than the others, provide a plausible explanation for why that might be. 
+
+
+## Deliverable
+
+Knit this .Rmd to .html and upload both on D2L.
+
+To get this to knit you will need to save objects as csv (write_csv) then load the csv (read_csv) so that you can comment out the whatNWISsites, readNWISdata, etc lines of code. If those lines are not commented out, this will likely not knit. 
+
+
+
+
