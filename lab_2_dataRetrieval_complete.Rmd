@@ -1,0 +1,221 @@
+---
+author: "YOUR NAME HERE"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+# dataRetrieval and area normalized flows (20 pts)
+
+## Intro
+
+In this lab we are going to use dataRetrieval and other packages (e.g., tidyverse, patchwork, leaflet) to download and analyze flow data. You are going to download streamflow data for gauges in Park County Montana. You will start by exploring how many gauges there are in the county and mapping them to see where they are. Next you will download the data from the gauges and do some EDA. You will then do some data analysis on a subset of gauges that meet certain criteria. 
+
+### This is knitr settings. Knitr is a package that will turn this Rmd to an html. 
+```{r}
+
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, results = FALSE)
+
+```
+
+
+### Load the necessary packages. 
+```{r}
+library(tidyverse)
+library(dataRetrieval)
+library(leaflet)
+library(patchwork)
+
+```
+
+### Workflow
+
+Use dataRetrieval to see how many USGS streamflow gauges there are in Park County that have data from 10/1/1990 to 10/1/2022.
+```{r}
+# Load the stream gauge data
+# Configs that could be changed ...
+param_cd <- "00060" # Parameter code for streamflow . See `dataRetrieval::parameterCdFile` for more.
+service_cd <- "dv" # means "daily value". See `https://waterservices.usgs.gov/rest/` for more info.
+# State code
+state_cd <- "MT"
+# County code
+county_cd <- "Park County"
+# set start and end dates for streamflow time series
+start <- as_date("1990-10-01")
+end <- as_date("2022-10-01")
+huc_cd <- "10070003"
+
+# Use whatNWISsites to identify what gauges exist that meet the above conditions. However, the whatNWISsites doesn't always screen out sites that don't have the exact dates we want. 
+
+stream_gauges <- whatNWISsites(parameterCd = param_cd, service = service_cd, stateCd = state_cd, countyCd = county_cd, startDate = start, endDate = end) %>% select(site_no, station_nm, dec_lat_va, dec_long_va)
+
+# Since whatNWISsites doesn't always work for the dates we can also run whatNWISdata to filter for the dates and gain some info on the gauges. Both of them are useful to run.  
+
+stream_gauges_info <- whatNWISdata(parameterCd = param_cd, service = service_cd, stateCd = state_cd, countyCd = county_cd, startDate = start, endDate = end) %>% 
+  filter(begin_date < start, end_date > end) 
+
+# Uncomment the code below to write the csv to save the data locally. This means you don't have to re-download everytime you work with this. 
+#write_csv(stream_gauges, "stream_gauges.csv")
+#write_csv(stream_gauges_info, "steam_gauges_info.csv")
+
+# In the future uncomment the code below to load the csv. 
+#stream_gauges <- read_csv("stream_gauges.csv")
+#stream_gauges_info <- read_csv("stream_gauges_info.csv")
+
+```
+
+Map the gauges. If leaflet isn't working for you, don't worry. This isn't critical, just useful to visualize where the gauges are. 
+```{r}
+park_map <- leaflet() %>% 
+  addProviderTiles("OpenStreetMap") %>% 
+  addAwesomeMarkers(data = stream_gauges, lat = ~dec_lat_va, lng = ~dec_long_va, label = ~station_nm, 
+                    popup = ~paste("Site", site_no)) 
+  
+park_map
+```
+
+
+Download the Q data for the gauges and create a df called "flows".
+```{r}
+sites <- stream_gauges$site_no
+
+flows <- readNWISdata(sites = sites, parameterCd = param_cd, service = service_cd, startDate = start, endDate = end) %>% renameNWISColumns()
+
+#write_csv(flows, "flows.csv")
+#flows <- read_csv("flows.csv")
+```
+
+Make a facet wrap to look at the flows for each gauge. Facet by "site_no". 
+```{r}
+flows %>% 
+  ggplot(aes(x = dateTime, y = Flow, color = site_no)) +
+  geom_point() +
+  facet_wrap(facets = "site_no")
+```
+
+
+Filter the "flows" df to only include gauges that have data that extends back to 1990. Hint: you should have 4 gauges. Call this new df "flows_filt".
+```{r}
+flows_filt <- flows %>% 
+  filter(site_no != "06192980", site_no != "06187915") %>% 
+  select(site_no, date = dateTime, flow_cfs = Flow)
+```
+
+Make another facet wrap of flow at those 4 gauges. Again, filter by "site_no".
+```{r}
+flows_filt %>% 
+  ggplot(aes(x = date, y = flow_cfs, color = site_no)) +
+  geom_point() +
+  facet_wrap(facets = "site_no")
+```
+
+For the 4 gauges you have kept, convert flow to mm/day. 
+
+This is a unit of depth per time, which we generally refer to as an area normalized flow. To get area normalized flow you divide the volumetric flow (e.g., cubic meters per second, m3/s) by the area of the watershed (e.g., cubic meters, m2). In this example, that division would yield meters per second (m/s). From there you would do some conversion to get to mm/day.  
+
+To do this, you obviously need to know the area of each watershed, which you can get from readNWISsite. 
+
+Also, remember that your Q data are currently in cfs so there are multiple conversions you will need to do. 
+
+You can find this online but the areas given from NWIS are in square miles. I'd recommend converting the area from square miles to square meters. And converting cubic feet per second to cubic meters per second. From there, the instructions above should get you where you want to go. 
+
+
+You can use whatNWISdata, readNWISsite, and a join (e.g., left_join) to get the names of the sites and the drainage areas in the same df. 
+```{r}
+site_info_a <- whatNWISdata(parameterCd = param_cd, service = service_cd, stateCd = state_cd, countyCd = county_cd, startDate = start, endDate = end) 
+
+#write_csv(site_info_a, "site_info_a.csv")
+#site_info_a <- read_csv("site_info_a.csv")
+
+site_info_a <- site_info_a %>% 
+  select(site_no, station_nm, dec_lat_va, dec_long_va, alt_va, begin_date, end_date, count_nu)
+
+site_info_b <- readNWISsite(stream_gauges$site_no)
+
+#write_csv(site_info_b, "site_info_b.csv")
+#site_info_b <- read_csv("site_info_b.csv")
+
+site_info_b <- site_info_b %>% 
+  select(site_no, drain_area_va)
+
+site_info <- left_join(site_info_a, site_info_b, by = "site_no") %>% 
+  filter(site_no != "06192980", site_no != "06187915", site_no != "06187910") 
+```
+
+Next, you will need to do another join to get the flow data and the drainage area in the same df. Once you have them in the same df all you need to do is the conversions outlined above. 
+```{r}
+site_drain <- site_info %>% 
+  select(site_no, station_nm, drain_area_va)
+
+flow_mm <- left_join(flows_filt, site_drain, by = "site_no") 
+
+flow_mm <- flow_mm %>% 
+  rename(drain_area_sq_mi = drain_area_va) %>% 
+  mutate(drain_area_sq_me = drain_area_sq_mi*2.59e+6) %>% 
+  mutate(q_mm_d = ((0.0283 * flow_cfs * 86400)/drain_area_sq_me)*1000)
+```
+
+Now that you have flow at each site in mm/day, make a facet wrap of flow for each gauge in mm/day. This area normalize flow gives us a sense of how much flow a watershed produces per unit area. It also allows us to compare across watersheds of different sizes. Obviously a larger watershed will produce more volumetric flow but will it produce more flow per unit area? Think about it like an hourly wage. You might make more at work because you work more hours, but your friend might make a higher hourly wage. So volumetric is like how much you made this pay period, and area normalized is like how much you made divided by the number of hours you worked. So wet watersheds that produce a lot of flow per unit area, have a high hourly wage, so to speak. 
+
+```{r}
+flow_mm %>% 
+  ggplot(aes(x = date, y = q_mm_d, color = station_nm)) +
+  geom_line() +
+  facet_wrap(facets = "site_no")
+```
+
+Compute and plot total annual flow for each gauge. You will need group_by(site_no, station_nm, year), and reframe. We did this is the first few weeks. Remember to add in na.rm = TRUE in case there are any NA values.  
+
+```{r}
+flow_mm_an <- flow_mm %>% 
+  mutate(year = year(date)) %>% 
+  group_by(site_no, station_nm, year) %>% 
+  reframe(tot_an_mm = sum(q_mm_d, na.rm = TRUE)) 
+
+```
+
+Plot total annual flow from each gauge in mm/year all on the same graph, and color by gauge name. 
+```{r}
+flow_mm_an %>% 
+  ggplot(aes(x = year, y = tot_an_mm, color = station_nm)) +
+  geom_line(linetype = "dashed") +
+  geom_point() +
+  labs(x = "", y = "Total annual flow (mm/y)", color = "Gauge") +
+  theme_linedraw()
+```
+
+Make a map of the gauges included in this plot of total annual flow to aid in interpretation. 
+```{r}
+gauges_filt <- stream_gauges %>% 
+  filter(site_no != "06192980", site_no != "06187915") 
+
+leaflet() %>% addProviderTiles("Stamen.Terrain") %>% 
+  addCircleMarkers(data = gauges_filt, lat = ~dec_lat_va, lng = ~dec_long_va, label = ~station_nm, 
+                    popup = ~paste("Site", site_no)) 
+
+```
+
+## Summary (14 pts)
+
+Using mm/year allows us to compare across gauges with very different volumetric (e.g., cfs or cms) flow rates. Remember that gauges that produce more water per unit area have a higher hourly wage. So from a watershed hydrology perspective, what types of watersheds would produce more water per unit area? Think about the watershed and climate characteristics that might lead to more or less production of water per unit area (aka, area normalized flow). 
+
+Use your plots of mm/year to comment on:\
+1. Does one gauge produce consistently less flow year to year? (2 pts)\
+
+2. Does one gauge produce consistently more flow year to year? (2 pts)\
+
+3. Which gauges show similar patterns in annual water yield? Provide a plausible explanation for why that might be. (5 pts)\
+
+4. For any gauges that seem different than the others, provide a plausible explanation for why that might be. (5 pts) 
+
+
+## Deliverable (6 pts)
+
+Knit this .Rmd to .html and upload both on D2L. If you can't get to knit, just upload .Rmd. 
+
+Points for clarity and commenting of .Rmd and clarity of figures. 
+
+
+
+
