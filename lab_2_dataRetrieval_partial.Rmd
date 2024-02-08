@@ -69,13 +69,20 @@ stream_gauges_info <- whatNWISdata(parameterCd = param_cd, service = service_cd,
 
 Map the gauges. If leaflet isn't working for you, don't worry. This isn't critical, just useful to visualize where the gauges are. 
 ```{r}
-
+park_map <- leaflet() %>% 
+  addProviderTiles("OpenStreetMap") %>% 
+  addAwesomeMarkers(data = stream_gauges, lat = ~dec_lat_va, lng = ~dec_long_va, label = ~station_nm, 
+                    popup = ~paste("Site", site_no)) 
+  
+park_map
 ```
 
 
 Download the Q data for the gauges and create a df called "flows".
 ```{r}
+sites <- stream_gauges$site_no
 
+flows <- readNWISdata(sites = sites, parameterCd = param_cd, service = service_cd, startDate = start, endDate = end) %>% renameNWISColumns()
 
 #write_csv(flows, "flows.csv")
 #flows <- read_csv("flows.csv")
@@ -110,17 +117,24 @@ You can find this online but the areas given from NWIS are in square miles. I'd 
 
 You can use whatNWISdata, readNWISsite, and a join (e.g., left_join) to get the names of the sites and the drainage areas in the same df. 
 ```{r}
-
+site_info_a <- whatNWISdata(parameterCd = param_cd, service = service_cd, stateCd = state_cd, countyCd = county_cd, startDate = start, endDate = end) 
 
 #write_csv(site_info_a, "site_info_a.csv")
 #site_info_a <- read_csv("site_info_a.csv")
 
+site_info_a <- site_info_a %>% 
+  select(site_no, station_nm, dec_lat_va, dec_long_va, alt_va, begin_date, end_date, count_nu)
 
+site_info_b <- readNWISsite(stream_gauges$site_no)
 
 #write_csv(site_info_b, "site_info_b.csv")
 #site_info_b <- read_csv("site_info_b.csv")
 
+site_info_b <- site_info_b %>% 
+  select(site_no, drain_area_va)
 
+site_info <- left_join(site_info_a, site_info_b, by = "site_no") %>% 
+  filter(site_no != "06192980", site_no != "06187915", site_no != "06187910") 
 ```
 
 Next, you will need to do another join to get the flow data and the drainage area in the same df. Once you have them in the same df all you need to do is the conversions outlined above. 
@@ -148,7 +162,7 @@ Plot total annual flow from each gauge in mm/year all on the same graph, and col
 
 Make a map of the gauges included in this plot of total annual flow to aid in interpretation. 
 ```{r}
-
+# 
 
 ```
 
