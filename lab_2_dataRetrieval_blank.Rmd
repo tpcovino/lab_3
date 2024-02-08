@@ -8,6 +8,8 @@ output:
 ---
 # dataRetrieval and area normalized flows (20 pts)
 
+[**Repo here**](https://github.com/tpcovino/lab_3){target="_blank"}
+
 ## Intro
 
 In this lab we are going to use dataRetrieval and other packages (e.g., tidyverse, patchwork, leaflet) to download and analyze flow data. You are going to download streamflow data for gauges in Park County Montana. You will start by exploring how many gauges there are in the county and mapping them to see where they are. Next you will download the data from the gauges and do some EDA. You will then do some data analysis on a subset of gauges that meet certain criteria. 
@@ -160,7 +162,7 @@ Plot total annual flow from each gauge in mm/year all on the same graph, and col
 
 Make a map of the gauges included in this plot of total annual flow to aid in interpretation. 
 ```{r}
-
+# 
 
 ```
 
